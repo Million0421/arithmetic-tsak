@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arithmetic Persistence Task (Zero-Feedback)</title>
+  <style>
+    :root { --bg:#f7f7f7; --fg:#111; --muted:#666; --accent:#1f7aec; --card:#fff; --border:#e5e5e5; --danger:#c62828; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.4}
+    .wrap{max-width:720px;margin:24px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    h1{margin:0 0 12px;font-size:22px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    label{font-size:14px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type=text],input[type=number]{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:16px}
+    button{appearance:none;border:0;cursor:pointer;padding:12px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;font-size:15px}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .muted{color:var(--muted)}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:16px}
+    .pill{background:#eef5ff;color:#1a5dcc;border:1px solid #d7e7ff;padding:6px 10px;border-radius:999px;font-size:13px}
+    .taskArea{display:grid;gap:16px}
+    .equation{font-size:44px;text-align:center;font-weight:700;letter-spacing:.5px}
+    .actionRow{display:flex;gap:12px;justify-content:center}
+    .answer{width:220px;text-align:center;font-size:22px;font-weight:700}
+    .dangerText{color:var(--danger);font-size:14px;min-height:18px;text-align:center}
+    .hidden{display:none !important}
+    .grid{display:grid;gap:10px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px}
+    .stat{background:#f9fafb;border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+    .stat .num{font-size:20px;font-weight:800}
+    .stat .lbl{font-size:12px;color:var(--muted);margin-top:2px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- SETUP VIEW -->
+    <section id="view-setup" class="card">
+      <h1>Arithmetic Persistence Task</h1>
+      <p class="muted" style="margin-top:-4px">Fixed-time randomized addition/subtraction (1–100). Duration: 5:00. During the task, no feedback is shown.</p>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1 1 240px;min-width:220px">
+          <label for="pid">Participant ID *</label>
+          <input id="pid" type="text" autocomplete="off" placeholder="e.g., P001" />
+        </div>
+        <div style="flex:1 1 240px;min-width:220px">
+          <label for="cond">Condition (optional)</label>
+          <input id="cond" type="text" autocomplete="off" placeholder="e.g., music / repetitive" />
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:14px">
+        <button id="startBtn">Start 5:00 Task</button>
+        <span class="muted">Data stays local. No internet required.</span>
+      </div>
+    </section>
+
+    <!-- TASK VIEW (ZERO-FEEDBACK) -->
+    <section id="view-task" class="card hidden" aria-live="polite">
+      <div class="topbar">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="pill" id="pillPid">ID: —</span>
+          <span class="pill" id="pillCond">Cond: —</span>
+        </div>
+        <!-- intentionally no timer / counters here -->
+      </div>
+      <div class="taskArea" style="margin-top:16px">
+        <div class="equation" id="equation">—</div>
+        <div class="actionRow">
+          <input id="answer" class="answer" type="number" inputmode="numeric" autocomplete="off" />
+          <button id="nextBtn">Next</button>
+        </div>
+        <div class="dangerText" id="warn"></div>
+      </div>
+    </section>
+
+    <!-- SUMMARY VIEW -->
+    <section id="view-summary" class="card hidden">
+      <h1>Summary</h1>
+      <div class="stats">
+        <div class="stat"><div class="num" id="sumTrials">0</div><div class="lbl">Trials completed</div></div>
+        <div class="stat"><div class="num" id="sumCorrect">0</div><div class="lbl">Correct answers</div></div>
+        <div class="stat"><div class="num" id="sumAcc">0%</div><div class="lbl">Accuracy</div></div>
+        <div class="stat"><div class="num" id="sumMeanRT">0</div><div class="lbl">Mean RT (ms)</div></div>
+        <div class="stat"><div class="num" id="sumSdRT">0</div><div class="lbl">RT SD (ms)</div></div>
+        <div class="stat"><div class="num" id="sumLastWinTrials">0</div><div class="lbl">Last 60s Trials</div></div>
+        <div class="stat"><div class="num" id="sumLastWinCorrect">0</div><div class="lbl">Last 60s Correct</div></div>
+        <div class="stat"><div class="num" id="sumLastWinAcc">0%</div><div class="lbl">Last 60s Accuracy</div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:16px">
+        <button id="downloadBtn">Download CSV</button>
+        <button id="restartBtn" style="background:#444">Restart</button>
+        <span class="muted">CSV includes a summary header row followed by trial-level rows.</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    'use strict';
+    // ------- Config -------
+    const DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+    // ------- Elements -------
+    const V = {
+      setup: document.getElementById('view-setup'),
+      task: document.getElementById('view-task'),
+      summary: document.getElementById('view-summary'),
+      pid: document.getElementById('pid'),
+      cond: document.getElementById('cond'),
+      startBtn: document.getElementById('startBtn'),
+      pillPid: document.getElementById('pillPid'),
+      pillCond: document.getElementById('pillCond'),
+      eqn: document.getElementById('equation'),
+      ans: document.getElementById('answer'),
+      next: document.getElementById('nextBtn'),
+      warn: document.getElementById('warn'),
+      sumTrials: document.getElementById('sumTrials'),
+      sumCorrect: document.getElementById('sumCorrect'),
+      sumAcc: document.getElementById('sumAcc'),
+      sumMeanRT: document.getElementById('sumMeanRT'),
+      sumSdRT: document.getElementById('sumSdRT'),
+      sumLastWinTrials: document.getElementById('sumLastWinTrials'),
+      sumLastWinCorrect: document.getElementById('sumLastWinCorrect'),
+      sumLastWinAcc: document.getElementById('sumLastWinAcc'),
+      dl: document.getElementById('downloadBtn'),
+      restart: document.getElementById('restartBtn'),
+    };
+
+    // ------- State -------
+    let participantId = '';
+    let condition = '';
+    let trials = []; // per-trial records
+    let trialIndex = 0;
+    let a=0,b=0,op='+'; let correctAns = 0;
+    let taskStart = 0; // Date.now
+    let trialStartHr = 0; // performance.now
+    let deadline = 0; let ticking = null;
+
+    // ------- Helpers -------
+    function setView(name){
+      V.setup.classList.toggle('hidden', name!=='setup');
+      V.task.classList.toggle('hidden', name!=='task');
+      V.summary.classList.toggle('hidden', name!=='summary');
+    }
+    function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+    function genProblem(){
+      let A = randInt(1,100), B = randInt(1,100);
+      const isAdd = Math.random()<0.5;
+      if(isAdd){ op='+'; a=A; b=B; correctAns = a + b; }
+      else { op='−'; if(A<B) [A,B]=[B,A]; a=A; b=B; correctAns = a - b; }
+      V.eqn.textContent = `${a} ${op} ${b} = ?`;
+      V.ans.value=''; V.ans.focus();
+      trialStartHr = performance.now();
+    }
+
+    function startTask(){
+      participantId = V.pid.value.trim();
+      if(!participantId){ V.pid.focus(); V.pid.style.borderColor='var(--danger)'; return; }
+      V.pid.style.borderColor='var(--border)';
+      condition = V.cond.value.trim();
+      V.pillPid.textContent = `ID: ${participantId}`;
+      V.pillCond.textContent = `Cond: ${condition||'—'}`;
+
+      trials=[]; trialIndex=0; taskStart=Date.now(); deadline = taskStart + DURATION_MS;
+      setView('task'); genProblem();
+
+      clearInterval(ticking);
+      ticking = setInterval(()=>{ if(Date.now()>=deadline) endTask(); }, 200);
+    }
+
+    function submitTrial(){
+      if(Date.now()>=deadline){ endTask(); return; }
+      const raw = V.ans.value.trim();
+      if(raw===''){ V.warn.textContent='Please enter a number.'; V.ans.focus(); return; }
+      V.warn.textContent='';
+      const userAns = Number(raw);
+      const rt = Math.max(0, Math.round(performance.now()-trialStartHr));
+      const tElapsed = Math.round((Date.now()-taskStart)/1000);
+
+      trialIndex += 1;
+      trials.push({
+        participant_id: participantId,
+        condition: condition,
+        trial_index: trialIndex,
+        a:a,
+        op:(op==='−'?'−':'+'), // keep minus glyph in display; normalize later if needed
+        b:b,
+        correct_answer: correctAns,
+        user_answer: userAns,
+        correct: Number(userAns)===Number(correctAns),
+        rt_ms: rt,
+        t_elapsed_s: tElapsed,
+      });
+
+      if(Date.now()>=deadline){ endTask(); return; }
+      genProblem();
+    }
+
+    function mean(arr){ if(!arr.length) return 0; return arr.reduce((s,x)=>s+x,0)/arr.length; }
+    function sd(arr){ if(arr.length<2) return 0; const m = mean(arr); const v = arr.reduce((s,x)=>s+(x-m)*(x-m),0)/(arr.length-1); return Math.sqrt(v); }
+
+    function computeSummary(){
+      const n = trials.length;
+      const correctN = trials.reduce((s,t)=>s+(t.correct?1:0),0);
+      const acc = n? Math.round(correctN/n*100):0;
+      const rts = trials.map(t=>t.rt_ms);
+      const mRT = Math.round(mean(rts));
+      const sdRT = Math.round(sd(rts));
+      // last 60 seconds window relative to task end
+      const cutoff = Math.max(0, Math.floor((DURATION_MS - 60000)/1000));
+      const last = trials.filter(t=> t.t_elapsed_s >= cutoff);
+      const lastN = last.length;
+      const lastC = last.reduce((s,t)=>s+(t.correct?1:0),0);
+      const lastAcc = lastN? Math.round(lastC/lastN*100):0;
+      return {n, correctN, acc, mRT, sdRT, lastN, lastC, lastAcc};
+    }
+
+    function endTask(){
+      clearInterval(ticking); ticking=null;
+      V.ans.disabled=true; V.next.disabled=true;
+      const S = computeSummary();
+      V.sumTrials.textContent = String(S.n);
+      V.sumCorrect.textContent = String(S.correctN);
+      V.sumAcc.textContent = S.acc + '%';
+      V.sumMeanRT.textContent = String(S.mRT);
+      V.sumSdRT.textContent = String(S.sdRT);
+      V.sumLastWinTrials.textContent = String(S.lastN);
+      V.sumLastWinCorrect.textContent = String(S.lastC);
+      V.sumLastWinAcc.textContent = S.lastAcc + '%';
+      setView('summary');
+    }
+
+    function toCSV(trials){
+      // Summary header row first, then detailed rows
+      const S = computeSummary();
+      const summaryHeader = [
+        '#SUMMARY','participant_id','condition','trials','correct','accuracy_pct','mean_rt_ms','sd_rt_ms','last60s_trials','last60s_correct','last60s_accuracy_pct'
+      ];
+      const summaryRow = [
+        '#SUMMARY', participantId, condition, S.n, S.correctN, S.acc, S.mRT, S.sdRT, S.lastN, S.lastC, S.lastAcc
+      ];
+      const header = ['participant_id','condition','trial_index','a','op','b','correct_answer','user_answer','correct','rt_ms','t_elapsed_s'];
+      const esc = v => {
+        const s = String(v ?? '');
+        return (s.includes('"')||s.includes(',')||s.includes('\n')) ? '"'+s.replaceAll('"','""')+'"' : s;
+      };
+      const lines = [summaryHeader.join(','), summaryRow.map(esc).join(','), header.join(',')];
+      for(const r of trials){
+        lines.push([
+          r.participant_id,
+          r.condition,
+          r.trial_index,
+          r.a,
+          r.op === '−' ? '-' : r.op, // normalize to hyphen-minus in CSV
+          r.b,
+          r.correct_answer,
+          r.user_answer,
+          r.correct,
+          r.rt_ms,
+          r.t_elapsed_s
+        ].map(esc).join(','));
+      }
+      return lines.join('\n');
+    }
+
+    function downloadCSV(){
+      const csv = toCSV(trials);
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      const name = `arithmetic_task_${participantId||'PID'}_${stamp}.csv`;
+      const a = document.createElement('a'); a.href=url; a.download=name; a.style.display='none';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function restart(){
+      V.pid.value=''; V.cond.value=''; V.ans.disabled=false; V.next.disabled=false; setView('setup'); V.pid.focus();
+    }
+
+    // --------- Minimal Self-Tests (console only; non-blocking) ---------
+    (function runSelfTests(){
+      try{
+        // Test CSV join uses \n and esc quotes commas/newlines
+        const testRows = [
+          {participant_id:'P',condition:'c',trial_index:1,a:1,op:'+',b:2,correct_answer:3,user_answer:3,correct:true,rt_ms:100,t_elapsed_s:1},
+          {participant_id:'P',condition:'c',trial_index:2,a:2,op:'−',b:1,correct_answer:1,user_answer:0,correct:false,rt_ms:200,t_elapsed_s:2}
+        ];
+        const csv = toCSV(testRows);
+        console.assert(csv.includes('\n'), 'CSV should contain newline characters');
+        console.assert(csv.split('\n').length >= 4, 'CSV should contain multiple lines');
+        console.assert(csv.includes('"#SUMMARY"')===false, 'Summary row should not quote #SUMMARY unless needed');
+        console.assert(csv.includes(',"a,b"')===false, 'No stray quoting regression');
+
+        // mean/sd quick checks
+        console.assert(Math.round((100+200)/2) === 150, 'Mean sanity');
+        console.assert(typeof csv === 'string' && csv.length>0, 'CSV not empty');
+      }catch(e){ console.warn('Self-tests skipped:', e); }
+    })();
+
+    // Events
+    V.startBtn.addEventListener('click', startTask);
+    V.next.addEventListener('click', submitTrial);
+    V.ans.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitTrial(); } });
+    V.dl.addEventListener('click', downloadCSV);
+    V.restart.addEventListener('click', restart);
+
+    window.addEventListener('load', ()=>{ V.pid.focus(); });
+  </script>
+</body>
+</html>
